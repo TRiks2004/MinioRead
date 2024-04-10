@@ -1,12 +1,8 @@
-import asyncio
-import time
 from aiohttp import ClientSession
 from datetime import (
     datetime,
     UTC,
 )
-
-import yarl  # Импортируем класс datetime из модуля datetime.
 
 from item import BucketInfo, MethodHttpRequest, ConfigUrl, ConfigToken, Token
 import xmltodict
@@ -21,9 +17,9 @@ class Header:
         *,
         authorization: Token,
         x_amz_date: datetime = None,
-        x_amz_algorithm="AWS4-HMAC-SHA256", 
+        x_amz_algorithm="AWS4-HMAC-SHA256",
         content_type=None,
-        content_disposition = None
+        content_disposition=None,
     ) -> None:
 
         headers = {}
@@ -38,16 +34,28 @@ class Header:
             )
         else:
             headers["X-Amz-Date"] = x_amz_date.strftime("%Y%m%dT%H%M%SZ")
-        
-        headers['Content-Type'] = content_type
-        headers['Content-Disposition'] = content_disposition 
-        
+
+        headers["Content-Type"] = content_type
+        headers["Content-Disposition"] = content_disposition
+
         self.headers = headers
 
     def __call__(self):
         return dict(filter(lambda a: a[1] is not None, self.headers.items()))
 
+
 class MinioAsyncClient:
+    """Принимает использование асинхронной сессии
+
+    client = MinioAsyncClient(
+        access_key=`отпечаток`,
+        secret_key=`секретный отпечаток`,
+        host=`точка входа`,
+        region=`регион установленый в Minio`,
+        secure=`использовать SSL протокола`,
+    )
+
+    """
 
     def __init__(
         self,
@@ -66,9 +74,6 @@ class MinioAsyncClient:
             region_name=region,
         )
 
-        
-        
-        
         self.__token = Token(self.__config)
 
         self.secure = secure
@@ -79,7 +84,7 @@ class MinioAsyncClient:
     ) -> BucketInfo:
 
         url = ConfigUrl(
-             MethodHttpRequest.GET, self.__config.host, f"/{bucket_name}/"
+            MethodHttpRequest.GET, self.__config.host, f"/{bucket_name}/"
         )
 
         headers = Header(authorization=self.__token(url))
@@ -88,7 +93,7 @@ class MinioAsyncClient:
             request_text = await response.text()
 
             request_text_dict = xmltodict.parse(request_text)
-            
+
             if response.status == 200:
                 return BucketInfo(request_text_dict)
             else:
@@ -123,7 +128,7 @@ class MinioAsyncClient:
         headers = Header(
             authorization=self.__token(url),
         )
-   
+
         async with session.put(str(url), headers=headers()) as response:
             print(response.status)
             print(await response.text())
@@ -155,12 +160,10 @@ class MinioAsyncClient:
             print(response.status)
             print(await response.text())
 
-    @aiohttp_session_decorator # TODO: Добавить exception
+    @aiohttp_session_decorator  # TODO: Добавить exception
     async def buckets_list_info(self, *, session: ClientSession = None):
 
-        url = ConfigUrl(
-            MethodHttpRequest.GET, self.__config.host, "/", {}
-        )
+        url = ConfigUrl(MethodHttpRequest.GET, self.__config.host, "/", {})
 
         headers = Header(
             authorization=self.__token(url),
@@ -168,19 +171,20 @@ class MinioAsyncClient:
 
         async with session.get(str(url), headers=headers()) as response:
             print(response.status)
-            
+
             request_text_dict = xmltodict.parse(await response.text())
-            buckets = request_text_dict['ListAllMyBucketsResult']['Buckets']['Bucket']
-            
-            
-            return [await self.buckets_info(bucket['Name']) for bucket in buckets]
-    
-    @aiohttp_session_decorator # TODO: Добавить exception
+            buckets = request_text_dict["ListAllMyBucketsResult"]["Buckets"][
+                "Bucket"
+            ]
+
+            return [
+                await self.buckets_info(bucket["Name"]) for bucket in buckets
+            ]
+
+    @aiohttp_session_decorator  # TODO: Добавить exception
     async def buckets_list_name(self, *, session: ClientSession = None):
 
-        url = ConfigUrl(
-            MethodHttpRequest.GET, self.__config.host, "/", {}
-        )
+        url = ConfigUrl(MethodHttpRequest.GET, self.__config.host, "/", {})
 
         headers = Header(
             authorization=self.__token(url),
@@ -188,70 +192,56 @@ class MinioAsyncClient:
 
         async with session.get(str(url), headers=headers()) as response:
             print(response.status)
-            
-            request_text_dict = xmltodict.parse(await response.text())
-            buckets = request_text_dict['ListAllMyBucketsResult']['Buckets']['Bucket']
-            
-            
-            return [bucket['Name'] for bucket in buckets]
 
-    
-    @aiohttp_session_decorator # TODO: Добавить exception
-    async def download_file(self, bucket_name: str, file_name: str, *, session: ClientSession = None):
+            request_text_dict = xmltodict.parse(await response.text())
+            buckets = request_text_dict["ListAllMyBucketsResult"]["Buckets"][
+                "Bucket"
+            ]
+
+            return [bucket["Name"] for bucket in buckets]
+
+    @aiohttp_session_decorator  # TODO: Добавить exception
+    async def download_file(
+        self,
+        bucket_name: str,
+        file_name: str,
+        *,
+        session: ClientSession = None,
+    ):
         # encoded_file_name = quote(file_name)
         url = ConfigUrl(
-            MethodHttpRequest.GET, self.__config.host, f"/{bucket_name}/{file_name}"
-        )        
-        
+            MethodHttpRequest.GET,
+            self.__config.host,
+            f"/{bucket_name}/{file_name}",
+        )
+
         headers = Header(authorization=self.__token(url))
 
         async with session.get(url(), headers=headers()) as response:
             return await response.content.read()
-            
-    @aiohttp_session_decorator # TODO: Добавить exception
+
+    @aiohttp_session_decorator  # TODO: Добавить exception
     async def upload_file(
-        self, 
-        bucket_name: str, 
+        self,
+        bucket_name: str,
         file_name: str,
         content: bytes,
-        content_type: str = 'application/octet-stream',
-        *, 
-        session: ClientSession = None
+        content_type: str = "application/octet-stream",
+        *,
+        session: ClientSession = None,
     ):
-        
+
         url = ConfigUrl(
-            MethodHttpRequest.PUT, self.__config.host, f"/{bucket_name}/{file_name}"
-        )        
-        
-        headers = Header(
-            authorization=self.__token(url),
-            content_type=content_type
+            MethodHttpRequest.PUT,
+            self.__config.host,
+            f"/{bucket_name}/{file_name}",
         )
 
-        async with session.put(url(), headers=headers(), data=content) as response:
+        headers = Header(
+            authorization=self.__token(url), content_type=content_type
+        )
+
+        async with session.put(
+            url(), headers=headers(), data=content
+        ) as response:
             ...
-                
-    
-def timer_decorator(func):
-    def wrapper(*args, **kwargs):
-        start_time = time.monotonic()
-        result = func(*args, **kwargs)
-        end_time = time.monotonic()
-        print(f"Время выполнения функции {func.__name__}: {end_time - start_time} секунд")
-        return result
-    return wrapper
-    
-async def main():
-    start_time = time.monotonic()
-    client = MinioAsyncClient(
-        access_key="cEGxqd5ASMs1jnCr1vob",
-        secret_key="QEyw0gEKDFnCgtqSdymNFnTLQZIIz6uhMohiQhaw",
-        host="127.0.0.1:7890",
-        region="fast-api-up-4",
-        secure=False,
-    )    
-
-    
-    
-asyncio.run(main())
-

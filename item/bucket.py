@@ -18,6 +18,7 @@ class BucketContentsOwnerInfo:
     def __repr__(self) -> str:
         return self.__str__()
 
+
 class BucketContentsInfo:
 
     key: str
@@ -43,6 +44,7 @@ class BucketContentsInfo:
     def __repr__(self) -> str:
         return self.__str__()
 
+
 class BucketInfo:
 
     name: str
@@ -61,22 +63,16 @@ class BucketInfo:
         self.marker = __block["Marker"]
         self.max_keys = int(__block["MaxKeys"])
         self.is_truncated = __block["IsTruncated"]
-        
-        
+
         contents = __block.get("Contents", None)
-        
+
         if contents is not None:
             if isinstance(contents, list):
                 self.contents = [BucketContentsInfo(c) for c in contents]
             elif isinstance(contents, dict):
-                self.contents = [BucketContentsInfo(contents)] 
+                self.contents = [BucketContentsInfo(contents)]
         else:
-            self.contents = None    
-        
-        
-        
-        
-         
+            self.contents = None
 
     def __str__(self) -> str:
         return str_cls(self)
