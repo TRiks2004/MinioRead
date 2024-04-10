@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "minioread"
+version = "0.0.1"
+description = "Library for working with minio (S3 storage)"
+authors = ["triks <trik0001000@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+boto3 = "^1.34.79"
+requests = "^2.31.0"
+minio = "^7.2.5"
+aiohttp = {extras = ["speedups"], version = "^3.9.3"}
+xmltodict = "^0.13.0"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
